@@ -1,0 +1,16 @@
+Requirements
+------------
+a. Save lives.
+b. Minimize property damage.
+c. Automated.
+d. Confirm alarms with a high degree of precision.
+e. Maintain continuous 24/7 connectivity with emergency services at all times.
+f. Optimize 100% safe evacuation with maximal property salvage.
+g. Provide occupants with urgent evacuation cues without triggering panic.
+h. Quickly isolate and lockdown intruders without trapping occupants.
+i. Respond effectively to all fire, infiltration and attack scenarios.  These may include misdirection, multiple points of entry, inside jobs, power surges or outages, electronic warfare, hostage situations, blackmail, natural disaster, arson, uncontrollable fires, electrocution zones, maximum activation of all devices at the same time, as well adapting to the physical destruction or compromise of a majority of devices, burglary attempts, uicidal attacks geared for total destruction of the premises, hardware malfunction and elaborate hoaxes from within or without.
+j. If all security personnel are dead, and the control monitors may be compromised, destruct the human interface portion of the system and re-transmit all activity and status to predefined protection agencies.
+k. It will not be possible to intercept, decode, or mangle any security transmissions to or from the control center.
+l. All occupants with security clearance and most first responders should be able to operate and interpret the control monitors.
+m. The number of security zones should be small and well-defined so that occupants may be trained and easily remember security protocols.
+n. We shall purchase 20 sensors and no more than 5 of all other devices.

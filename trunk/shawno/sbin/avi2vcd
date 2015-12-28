@@ -1,0 +1,196 @@
+#!/bin/bash
+
+#	This has been released under the GNU GPL license.
+#	You can do whatever you want with this script, and
+#	I take no responsibililty to the outcomes from the
+#	usages from this script. 
+#	
+#	Please note that there are some ogg issues that need to be tested.
+
+
+
+#AVIFILE=/path/to/avi/file
+#TEMP=/path/for/temp/files
+#BINCUE=/path/for/final/bin/cue
+#DIR=/current/working/dir
+#AUDIORATE= 128 for mono 224 for stero, 224 is standard bitrate for vcds
+#EXISTS= boolean flag for existing TEMP dir
+#FINALENAME= name to be given to bin/cue
+#CODEC = the codec dected by transcode
+
+
+#initialize some variables
+EXISTS="0"
+DIR=`pwd`
+SVCD="0"
+FILTERS="-J normalize"
+
+if [ $# -eq "1" ]; then
+	INPUT_FILE=$1
+	if [ "$!" == "`basename \"$1\"`" ]; then
+		INPUT_FILE="$DIR/$1"
+	fi
+	TYPE=`grep 'TYPE' $INPUT_FILE | \
+	perl -e ' $line=<STDIN> ; $line =~ /TYPE=(\d)/ ; print $1' `
+	AVIFILE=`grep 'AVIFILE' $INPUT_FILE | \
+	perl -e ' $line=<STDIN> ; $line =~ /AVIFILE=(\S+)/ ; print $1' `
+	PASS=`grep 'PASS' $INPUT_FILE | \
+	perl -e ' $line=<STDIN> ; $line =~ /PASS=(\d)/ ; print $1' `
+	CDSIZE=`grep 'CDSIZE' INPUT_FILE | \
+	perl -e ' $line=<STDIN> ; $line =~ /CDSIZE=(\d)/ ; print $1' `
+	TEMP=`grep 'TEMP' $INPUT_FILE | \
+	perl -e ' $line=<STDIN> ; $line =~ /TEMP=(\S+)/ ; print $1' `
+	BINCUE=`grep 'BINCUE' $INPUT_FILE | \
+	perl -e ' $line=<STDIN> ; $line =~ /BINCUE=(\S+)/ ; print $1' `
+	TEMP=`grep 'FINALNAME' $INPUT_FILE | \
+	perl -e ' $line=<STDIN> ; $line =~ /FINALNAME=(\S+)/ ; print $1' `
+else
+	#ask user for some information
+	echo -n "Would you like to make a 1=VCD or 2=SVCD?: "
+	read -e TYPE
+	echo ""
+	echo -n "Please enter the avi file name: "
+	read -e AVIFILE
+	echo ""
+	echo -n "Please enter the temp directory you want to use: "
+	read -e TEMP
+	echo ""
+	echo -n "Please enter the directory for the bin and cue: "
+	read -e BINCUE
+	echo ""
+	echo -n "Please enter the final name for the bin and cue: "
+	read -e FINALNAME
+	echo ""
+	echo -n "Please enter the size of the cd(s) 1=650 or 2=700 mb: "
+	read -e CDSIZE
+	echo ""
+	echo -n "Number of passes to make (1,2,3 defaults to 1): " 
+	read -e PASS
+fi
+
+#set cd size
+if [ $CDSIZE == "1" ]; then
+	CDSIZE=735
+elif [ $CDSIZE == "2" ]; then
+	CDSIZE=795
+fi
+
+#check to see if the temp directory exists
+if [ -d $TEMP ]; then
+	EXISTS="1"
+else
+        mkdir $TEMP
+fi
+
+cd $TEMP
+
+if [ $TYPE == "2" ]; then
+        echo "maxFileSize = $CDSIZE" > $TEMP/profile
+        VCODEC="-y mpeg2enc,toolame -F 4"
+        SVCD="1"
+	TYPE="-t svcd"
+	MODE="-m s"
+elif [ $TYPE == "1" ]; then
+        echo "maxFileSize = $CDSIZE" > $TEMP/profile
+        VCODEC="-y mpeg2enc,toolame -F 1"
+	TYPE="-t vcd2"
+	MODE="-m v"
+fi
+
+
+tcprobe -i "$AVIFILE" &> $TEMP/info
+
+VIDTYPE=`grep '\[tcprobe\]' $TEMP/info | \
+        perl -e ' $line=<STDIN> ; $line =~ /\[tcprobe\] (RIFF|MPEG|OGG|OGM)/  ;  print $1' `
+
+if [ $VIDTYPE == "RIFF" ]; then
+	FPS=`grep '\[avilib\] V:' $TEMP/info | \
+	perl -e ' $line=<STDIN> ; $line =~ /V: (.+?) fps/  ;  print $1' `
+	RATE=`grep '\[avilib\] A:' $TEMP/info | \
+	perl -e ' $line=<STDIN> ; $line =~ /channels=(\d+)/ ; print $1' `
+elif [ $VIDTYPE == "OGG" -o $VIDTYPE == "OGM" ]; then
+	RATE=`grep '\audio track:' $TEMP/info | \
+	perl -e ' $line=<STDIN> ;  $line =~ /48000,0,(\d+)/ ; print $1' `
+	FPS="23.9"
+elif [ $VIDTYPE == "MPEG" ]; then
+	cd $BINCUE
+	vcdimager -t vcd20 -c $BINCUE/$FINALNAME.cue -b $BINCUE/$FINALNAME.bin $AVIFILE
+	RETVAL=$?
+        if [ $RETVAL -ne 0 ]; then
+                echo -e "\n**** ERROR creating VCD images. Code $RETVAL"
+                exit 1
+        else
+		echo "VCD created successfully ;-)"
+		exit 0
+	fi
+else
+	exti 1
+fi
+
+ 
+if [ $FPS == "29.9" -o $FPS == "30" -o $FPS == "23.9" ]; then
+	if [ $SVCD == "1" ]; then
+		DIM="480x480"
+	else
+		DIM="352x240"
+	fi
+else
+	if [ $SVCD == "1" ]; then
+		DIM="-Z 480x576"
+	else
+	        DIM="-Z 352x288"
+	fi
+fi
+
+if [ $RATE == "1" ]; then
+	AUDIORATE="128"
+else
+	AUDIORATE="224"
+fi
+if [ $PASS == "1" -o $PASS == "2" -o $PASS == "3" -o $PASS == "4" ]; then
+	echo ""	
+else
+	PASS="0"
+fi
+
+for ((i="1"; i <= $PASS; i++))
+do
+	RPASS="-R $i,$TEMP/log,$TEMP/pcm.log"
+	transcode -i $AVIFILE -V $VCODEC $RPASS $DIM --export_asr 2 -Q 5,5 -E 44100 -b $AUDIORATE $FILTERS  -o videocd
+done
+
+
+echo "maxFileSize = $CDSIZE" > $TEMP/profile
+echo "forced_mux_rate = 0" >> $TEMP/profile
+tcmplex -N -i videocd.m1v -p videocd.mp2 -o $FINALNAME.mpg $MODE -F $TEMP/profile
+rm -f $TEMP/profile
+
+for file in *.mpg
+do
+	vcdimager $TYPE -c $BINCUE/$file.cue -b $BINCUE/$file.bin $file
+	RETVAL=$?
+	if [ $RETVAL -ne 0 ]; then
+		echo -e "\n**** ERROR creating VCD images. Code $RETVAL"
+                	EXITSTAT="1"
+	else
+        	        EXITSTAT="0"
+	fi
+done
+ 
+if [ $EXISTS == "0" ];then
+        rm -Rf $TEMP
+else
+        rm -f $TEMP/videocd.mpg
+        rm -f $TEMP/videocd.m1v
+        rm -f $TEMP/videocd.mp2
+fi
+
+if [ $EXITSTAT == "0" ]; then
+	echo "Completed successfully"
+	echo "PLease check the directory you specified for the bin and cue"
+	exit 0
+else
+	echo "An error occured"
+	exit 1
+fi
+

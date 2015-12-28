@@ -1,0 +1,3 @@
+clear
+
+find . \( -type d -name *svn* -prune \) -o \( -type f -name '*' -exec grep "$1" {} \; -print \)
